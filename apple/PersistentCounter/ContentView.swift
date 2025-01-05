@@ -10,6 +10,7 @@ struct ContentView: View {
                 .imageScale(.large)
                 .foregroundColor(.accentColor)
             Text(core.view.count)
+            Text("Error: \(core.view.message)")
             HStack {
                 ActionButton(label: "Initialize", color: .blue) {
                     core.update(.initialize)

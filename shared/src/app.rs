@@ -17,11 +17,13 @@ pub enum Event {
 #[derive(Default)]
 pub struct Model {
     count: isize,
+    error: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct ViewModel {
     pub count: String,
+    pub message: String,
 }
 
 #[cfg_attr(feature = "typegen", derive(crux_core::macros::Export))]
@@ -42,28 +44,40 @@ impl App for Counter {
     type Capabilities = Capabilities;
 
     fn update(&self, event: Self::Event, model: &mut Self::Model, caps: &Self::Capabilities) {
+        model.error = "".to_string();
         match event {
             Event::Initialize => {
                 info!("Initializing database");
                 caps.database.fetch_counter(Event::DatabaseResponse);
             }
-            Event::Increment => model.count += 1,
-            Event::Decrement => model.count -= 1,
-            Event::Reset => model.count = 0,
+            Event::Increment => {
+                model.count += 1;
+                caps.database
+                    .update_counter(model.count, Event::DatabaseResponse);
+            }
+            Event::Decrement => {
+                model.count -= 1;
+                caps.database
+                    .update_counter(model.count, Event::DatabaseResponse);
+            }
+            Event::Reset => {
+                model.count = 0;
+                caps.database
+                    .update_counter(model.count, Event::DatabaseResponse);
+            }
             Event::DatabaseResponse(database_output) => match database_output {
                 DatabaseOutput::Succeeded => println!("Database operation succeeded"),
                 DatabaseOutput::Counter(counter) => model.count = counter,
+                DatabaseOutput::Failed(e) => model.error = e,
             },
         };
-        caps.database
-            .update_counter(model.count, Event::DatabaseResponse);
-
         caps.render.render();
     }
 
     fn view(&self, model: &Self::Model) -> Self::ViewModel {
         ViewModel {
             count: format!("Count is: {}", model.count),
+            message: model.error.clone(),
         }
     }
 }

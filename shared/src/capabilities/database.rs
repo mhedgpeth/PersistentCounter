@@ -16,6 +16,8 @@ pub enum DatabaseOperation {
 pub enum DatabaseOutput {
     /// When the database operation succeeds with no return value
     Succeeded,
+    /// The database operation failed
+    Failed(String),
     /// The operation returns the current counter.
     Counter(isize),
 }
@@ -43,10 +45,23 @@ where
     {
         let ctx = self.context.clone();
         self.context.spawn(async move {
-            let connection = initialize_db(get_db_path().unwrap().to_str().unwrap()).unwrap();
-            let counter = fetch_counter(&connection, 1).unwrap();
-            ctx.update_app(event(DatabaseOutput::Counter(counter)));
-        })
+            let result: Result<isize, String> = (|| {
+                let path = get_db_path().map_err(|e| e.to_string())?;
+                let path_str = path
+                    .to_str()
+                    .ok_or_else(|| "Invalid path string".to_string())?;
+                let connection = initialize_db(path_str).map_err(|e| e.to_string())?;
+                let counter = fetch_counter(&connection, 1).map_err(|e| e.to_string())?;
+                Ok(counter)
+            })();
+
+            let output = match result {
+                Ok(counter) => DatabaseOutput::Counter(counter),
+                Err(e) => DatabaseOutput::Failed(e.to_string()),
+            };
+
+            ctx.update_app(event(output));
+        });
     }
 
     pub fn update_counter<F>(&self, value: isize, event: F)
@@ -55,9 +70,22 @@ where
     {
         let ctx = self.context.clone();
         self.context.spawn(async move {
-            let connection = initialize_db(get_db_path().unwrap().to_str().unwrap()).unwrap();
-            update_counter(&connection, 1, value).unwrap();
-            ctx.update_app(event(DatabaseOutput::Succeeded));
-        })
+            let result: Result<(), String> = (|| {
+                let path = get_db_path().map_err(|e| e.to_string())?;
+                let path_str = path
+                    .to_str()
+                    .ok_or_else(|| "Invalid path string".to_string())?;
+                let connection = initialize_db(path_str).map_err(|e| e.to_string())?;
+                update_counter(&connection, 1, value).map_err(|e| e.to_string())?;
+                Ok(())
+            })();
+
+            let output = match result {
+                Ok(()) => DatabaseOutput::Succeeded,
+                Err(e) => DatabaseOutput::Failed(e),
+            };
+
+            ctx.update_app(event(output));
+        });
     }
 }
