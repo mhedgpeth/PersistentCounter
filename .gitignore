@@ -1,0 +1,9 @@
+/target
+/Android
+/apple/fastlane/.env.secret
+/apple/PersistentCounter/Info.plist
+/apple/PersistentCounter.xcodeproj
+/apple/fastlane/report.xml
+/apple/generated
+.idea
+/shared/shared.xcodeproj/xcuserdata

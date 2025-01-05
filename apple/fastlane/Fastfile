@@ -1,0 +1,114 @@
+# based on this video: https://www.youtube.com/watch?v=6Jz-Ywxki0U
+fastlane_require "dotenv"
+
+before_all do
+  Dotenv.load ".env.secret"
+end
+
+desc "Generate project files"
+lane :generate do
+    xcodegen(spec: "project.yml")
+end
+
+desc "Lint project"
+lane :lint do
+  swiftlint(
+    config_file: ".swiftlint.yml",
+    strict: true,
+    raise_if_swiftlint_error: true
+  )
+end
+
+desc "Reformat project"
+lane :reformat do
+  swiftformat(
+    lint: false
+  )
+end
+
+desc "Ensure project is formatted"
+lane :lint_formatting do
+  swiftformat(
+    lint: true
+  )
+end
+
+desc "Create on Developer Portal and App Store Connect"
+desc "Note that this only works with a personal Apple ID in a local"
+desc "session and can't be a part of CI"
+lane :create_app do
+  create_app_online # produce
+end
+
+platform :ios do
+  before_all do
+    Dotenv.load ".env.mac"
+  end
+
+  desc "Clean build"
+  lane :clean do
+    sh "rm -rf ../build"
+    xcclean
+  end
+
+  desc "Nuke certs"
+  lane :nuke_signing do
+    app_store_connect_api_key
+    match_nuke(type: "development")
+    match_nuke(type: "appstore")
+  end
+
+  desc "Sync development signing"
+  lane :signing do
+    app_store_connect_api_key
+    # app store or whatever will be added later
+    sync_code_signing(
+      type: "development",
+      force_for_new_devices: true
+    )
+  end
+
+
+  desc "Test"
+  lane :test do
+    run_tests
+  end
+
+  desc "Build binary incrementally"
+  lane :build do
+    xcbuild(
+      configuration: "Debug",
+      archive: true,
+      archive_path: "./build/ios/PersistentCounter.xcarchive",
+      scheme: "PersistentCounter",
+    )
+  end
+
+  desc "Runs an incremental build"
+  lane :incremental do
+    lint_formatting
+    lint
+    signing # technically only dev is needed, for later
+    test
+    build
+  end
+
+  desc "Runs a full build for CI"
+  lane :full do
+    setup_ci if ENV['CI']
+    generate
+    clean
+    lint_formatting
+    lint
+    signing # technically appstore or Developer ID will be needed, for later
+    test
+    build
+  end
+
+  desc "Release binary"
+  lane :release do
+    signing
+    build
+    upload_to_app_store # deliver
+  end
+end
