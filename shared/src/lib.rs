@@ -1,4 +1,6 @@
 pub mod app;
+mod capabilities;
+pub mod database;
 
 use lazy_static::lazy_static;
 use wasm_bindgen::prelude::wasm_bindgen;

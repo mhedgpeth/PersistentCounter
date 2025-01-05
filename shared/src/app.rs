@@ -1,12 +1,17 @@
 // ANCHOR: app
+use crate::capabilities::database::{Database, DatabaseOutput};
 use crux_core::{render::Render, App};
 use serde::{Deserialize, Serialize};
+use uniffi::deps::log::info;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Event {
+    Initialize,
     Increment,
     Decrement,
     Reset,
+    #[serde(skip)]
+    DatabaseResponse(DatabaseOutput),
 }
 
 #[derive(Default)]
@@ -23,6 +28,7 @@ pub struct ViewModel {
 #[derive(crux_core::macros::Effect)]
 pub struct Capabilities {
     render: Render<Event>,
+    database: Database<Event>,
 }
 
 #[derive(Default)]
@@ -37,10 +43,20 @@ impl App for Counter {
 
     fn update(&self, event: Self::Event, model: &mut Self::Model, caps: &Self::Capabilities) {
         match event {
+            Event::Initialize => {
+                info!("Initializing database");
+                caps.database.fetch_counter(Event::DatabaseResponse);
+            }
             Event::Increment => model.count += 1,
             Event::Decrement => model.count -= 1,
             Event::Reset => model.count = 0,
+            Event::DatabaseResponse(database_output) => match database_output {
+                DatabaseOutput::Succeeded => println!("Database operation succeeded"),
+                DatabaseOutput::Counter(counter) => model.count = counter,
+            },
         };
+        caps.database
+            .update_counter(model.count, Event::DatabaseResponse);
 
         caps.render.render();
     }

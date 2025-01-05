@@ -22,6 +22,7 @@ class Core: ObservableObject {
         switch request.effect {
         case .render:
             view = try! .bincodeDeserialize(input: [UInt8](PersistentCounter.view()))
+        case .database: print("should be handled in rust")
         }
     }
 }

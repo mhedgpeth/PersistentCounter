@@ -11,6 +11,9 @@ struct ContentView: View {
                 .foregroundColor(.accentColor)
             Text(core.view.count)
             HStack {
+                ActionButton(label: "Initialize", color: .blue) {
+                    core.update(.initialize)
+                }
                 ActionButton(label: "Reset", color: .red) {
                     core.update(.reset)
                 }
